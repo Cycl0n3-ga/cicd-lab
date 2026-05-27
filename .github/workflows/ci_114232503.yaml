@@ -15,7 +15,7 @@ jobs:
   ci:
     name: Typecheck / Prettier / Vitest
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 5
 
     steps:
       - name: Checkout repository
@@ -41,6 +41,15 @@ jobs:
           mkdir -p reports
           npm test -- --reporter=default --reporter=junit --outputFile.junit=reports/vitest-junit.xml
 
+      - name: Publish Vitest test results
+        uses: dorny/test-reporter@v3
+        if: ${{ always() && hashFiles('reports/vitest-junit.xml') != '' }}
+        with:
+          name: Vitest Test Results
+          path: reports/vitest-junit.xml
+          reporter: java-junit
+          fail-on-error: true
+
       - name: Upload test report artifact
         uses: actions/upload-artifact@v7
         if: ${{ always() && hashFiles('reports/vitest-junit.xml') != '' }}
@@ -65,4 +74,7 @@ jobs:
             echo "| TypeScript typecheck | \`npm run typecheck\` | 檢查 TypeScript 型別錯誤 |"
             echo "| Prettier check | \`npm run format:check\` | 檢查程式碼格式是否符合規範 |"
             echo "| Vitest test | \`npm test\` | 執行測試並輸出 JUnit XML 報告 |"
+            echo ""
+            echo "### Test Report"
+            echo "Vitest 測試結果會由 JUnit XML 產生，並透過 test reporter 顯示於 GitHub Actions 結果頁面。"
           } >> "$GITHUB_STEP_SUMMARY"
