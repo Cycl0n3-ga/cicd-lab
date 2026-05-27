@@ -1,0 +1,68 @@
+name: CI_114232503
+
+on:
+  push:
+    branches:
+      - '**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  checks: write
+
+jobs:
+  ci:
+    name: Typecheck / Prettier / Vitest
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript typecheck
+        run: npm run typecheck
+
+      - name: Prettier format check
+        run: npm run format:check
+
+      - name: Run tests and generate JUnit report
+        id: test
+        run: |
+          mkdir -p reports
+          npm test -- --reporter=default --reporter=junit --outputFile.junit=reports/vitest-junit.xml
+
+      - name: Upload test report artifact
+        uses: actions/upload-artifact@v7
+        if: ${{ always() && hashFiles('reports/vitest-junit.xml') != '' }}
+        with:
+          name: vitest-junit-report
+          path: reports/vitest-junit.xml
+          if-no-files-found: error
+
+      - name: Append CI summary
+        if: always()
+        run: |
+          {
+            echo "## CI Pipeline — 114232503"
+            echo ""
+            echo "**Trigger:** \`${{ github.event_name }}\`"
+            echo "**Branch:** \`${{ github.ref_name }}\`"
+            echo "**Commit:** \`${{ github.sha }}\`"
+            echo ""
+            echo "### Checks"
+            echo "| Stage | Command | Purpose |"
+            echo "|---|---|---|"
+            echo "| TypeScript typecheck | \`npm run typecheck\` | 檢查 TypeScript 型別錯誤 |"
+            echo "| Prettier check | \`npm run format:check\` | 檢查程式碼格式是否符合規範 |"
+            echo "| Vitest test | \`npm test\` | 執行測試並輸出 JUnit XML 報告 |"
+          } >> "$GITHUB_STEP_SUMMARY"
